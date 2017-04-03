@@ -35,134 +35,123 @@ import org.cloudbus.cloudsim.ex.mapreduce.policy.Policy.CloudDeploymentModel;
  */
 public class LFF {
 
-    public enum LFFSorts {
-	Cost, Performance;
-    }
-
-    public Boolean runAlgorithm(Cloud cloud, Request request, LFFSorts lFFSort) {
-	CloudDeploymentModel cloudDeploymentModel = request.getCloudDeploymentModel();
-
-	// Fill VPList
-	int numTasks = request.job.mapTasks.size() + request.job.reduceTasks.size();
-	List<VmInstance> VPList = Policy.getAllVmInstances(cloud, request, cloudDeploymentModel, numTasks);
-
-	if (lFFSort == LFFSorts.Performance)
-	{
-	    // Sort VPList by mips (performance)
-	    Collections.sort(VPList, new Comparator<VmType>() {
-		@Override
-		public int compare(VmType vmType1, VmType vmType2) {
-		    return Double.compare(vmType2.getMips(), vmType1.getMips());
-		}
-	    });
-	}
-	if (lFFSort == LFFSorts.Cost)
-	{
-	    Collections.sort(VPList, new Comparator<VmType>() {
-		@Override
-		public int compare(VmType vmType1, VmType vmType2) {
-		    return Double.compare(vmType1.vmCostPerHour, vmType2.vmCostPerHour);
-		}
-	    });
+	public enum LFFSorts {
+		Cost, Performance;
 	}
 
-	// Allocation
-	boolean isJobAlloc = false;
-	while (isJobAlloc == false && VPList.size() >= numTasks) {
-	    // Allocate all Map Tasks
-	    boolean isMapAlloc = MapTasksAlloc(request, VPList);
-	    if (isMapAlloc)
-	    {
-		// Allocate all reduce Tasks
-		ReduceTasksAlloc(request, VPList);
+	public Boolean runAlgorithm(Cloud cloud, Request request, LFFSorts lFFSort) {
+		CloudDeploymentModel cloudDeploymentModel = request.getCloudDeploymentModel();
 
-		// Calculate the execution time for each map task
-		List<Double> mapET = new ArrayList<Double>();
-		for (int i = 0; i < request.job.mapTasks.size(); i++)
-		    // mapET.add(getMapExecutionTime(request.job.mapTasks.get(i),
-		    // request, cloud));
-		    mapET.add(request.job.mapTasks.get(i).getTaskExecutionTimeInSeconds());
+		// Fill VPList
+		int numTasks = request.job.mapTasks.size() + request.job.reduceTasks.size();
+		List<VmInstance> VPList = Policy.getAllVmInstances(cloud, request, cloudDeploymentModel, numTasks);
 
-		// Map Finish time = The max of mapETs
-		double mapFT = 0.0;
-		for (Double oneMapET : mapET) {
-		    mapFT = Math.max(mapFT, oneMapET);
+		if (lFFSort == LFFSorts.Performance) {
+			// Sort VPList by mips (performance)
+			Collections.sort(VPList, new Comparator<VmType>() {
+				@Override
+				public int compare(VmType vmType1, VmType vmType2) {
+					return Double.compare(vmType2.getMips(), vmType1.getMips());
+				}
+			});
+		}
+		if (lFFSort == LFFSorts.Cost) {
+			Collections.sort(VPList, new Comparator<VmType>() {
+				@Override
+				public int compare(VmType vmType1, VmType vmType2) {
+					return Double.compare(vmType1.vmCostPerHour, vmType2.vmCostPerHour);
+				}
+			});
 		}
 
-		// Calculate the execution time for each reduce task
-		List<Double> reduceET = new ArrayList<Double>();
-		for (int i = 0; i < request.job.reduceTasks.size(); i++)
-		    // reduceET.add(getReduceExecutionTime(request.job.reduceTasks.get(i),
-		    // request, cloud, mapFT));
-		    reduceET.add(mapFT + request.job.reduceTasks.get(i).getTaskExecutionTimeInSeconds());
+		// Allocation
+		boolean isJobAlloc = false;
+		while (isJobAlloc == false && VPList.size() >= numTasks) {
+			// Allocate all Map Tasks
+			boolean isMapAlloc = MapTasksAlloc(request, VPList);
+			if (isMapAlloc) {
+				// Allocate all reduce Tasks
+				ReduceTasksAlloc(request, VPList);
 
-		// Map Finish time = The max of mapETs
-		double reduceFT = 0.0;
-		for (Double oneReduceET : reduceET) {
-		    reduceFT = Math.max(reduceFT, oneReduceET);
+				// Calculate the execution time for each map task
+				List<Double> mapET = new ArrayList<Double>();
+				for (int i = 0; i < request.job.mapTasks.size(); i++)
+					// mapET.add(getMapExecutionTime(request.job.mapTasks.get(i),
+					// request, cloud));
+					mapET.add(request.job.mapTasks.get(i).getTaskExecutionTimeInSeconds());
+
+				// Map Finish time = The max of mapETs
+				double mapFT = 0.0;
+				for (Double oneMapET : mapET) {
+					mapFT = Math.max(mapFT, oneMapET);
+				}
+
+				// Calculate the execution time for each reduce task
+				List<Double> reduceET = new ArrayList<Double>();
+				for (int i = 0; i < request.job.reduceTasks.size(); i++)
+					// reduceET.add(getReduceExecutionTime(request.job.reduceTasks.get(i),
+					// request, cloud, mapFT));
+					reduceET.add(mapFT + request.job.reduceTasks.get(i).getTaskExecutionTimeInSeconds());
+
+				// Map Finish time = The max of mapETs
+				double reduceFT = 0.0;
+				for (Double oneReduceET : reduceET) {
+					reduceFT = Math.max(reduceFT, oneReduceET);
+				}
+
+				if (reduceFT <= request.deadline) {
+					isJobAlloc = true;
+					Log.printLine("Hwang and Kim 2012 Policy: Execution Time For Request ID: " + request.id + " is: "
+							+ reduceFT + " (Map Finish Time:" + mapFT + ")");
+				} else {
+					// FDeallocate all VMs
+					request.mapAndReduceVmProvisionList = new ArrayList<VmInstance>();
+					request.schedulingPlan = new HashMap<Integer, Integer>();
+				}
+				if (isJobAlloc == false)
+					VPList.remove(0);
+			}
 		}
-
-		if (reduceFT <= request.deadline)
-		{
-		    isJobAlloc = true;
-		    Log.printLine("Hwang and Kim 2012 Policy: Execution Time For Request ID: " + request.id + " is: "
-			    + reduceFT + " (Map Finish Time:" + mapFT + ")");
+		if (request.getAlgoFirstSoulationFoundedTime() == null) {
+			Long algoStartTime = request.getAlgoStartTime();
+			Long currentTime = System.currentTimeMillis();
+			request.setAlgoFirstSoulationFoundedTime((currentTime - algoStartTime));
 		}
-		else
-		{
-		    // FDeallocate all VMs
-		    request.mapAndReduceVmProvisionList = new ArrayList<VmInstance>();
-		    request.schedulingPlan = new HashMap<Integer, Integer>();
+		return isJobAlloc;
+	}
+
+	/*
+	 * Allocate all map tasks
+	 */
+	private boolean MapTasksAlloc(Request request, List<VmInstance> VPList) {
+		for (int i = 0; i < request.job.mapTasks.size(); i++) {
+			try {
+				// 1- Provisioning
+				VmInstance vm = VPList.get(i);
+				request.mapAndReduceVmProvisionList.add(vm);
+				// 2- Scheduling
+				MapTask mapTask = request.job.mapTasks.get(i);
+				request.schedulingPlan.put(mapTask.getCloudletId(), vm.getId());
+			} catch (Exception e) {
+				e.printStackTrace();
+				// For any error, deallocate all VMs
+				request.mapAndReduceVmProvisionList = new ArrayList<VmInstance>();
+				request.schedulingPlan = new HashMap<Integer, Integer>();
+				return false;
+			}
 		}
-		if (isJobAlloc == false)
-		    VPList.remove(0);
-	    }
+		return true;
 	}
-	if (request.getAlgoFirstSoulationFoundedTime() == null)
-	{
-	    Long algoStartTime = request.getAlgoStartTime();
-	    Long currentTime = System.currentTimeMillis();
-	    request.setAlgoFirstSoulationFoundedTime((currentTime - algoStartTime));
-	}
-	return isJobAlloc;
-    }
 
-    /*
-     * Allocate all map tasks
-     */
-    private boolean MapTasksAlloc(Request request, List<VmInstance> VPList)
-    {
-	for (int i = 0; i < request.job.mapTasks.size(); i++)
-	{
-	    try {
-		// 1- Provisioning
-		VmInstance vm = VPList.get(i);
-		request.mapAndReduceVmProvisionList.add(vm);
-		// 2- Scheduling
-		MapTask mapTask = request.job.mapTasks.get(i);
-		request.schedulingPlan.put(mapTask.getCloudletId(), vm.getId());
-	    } catch (Exception e) {
-		e.printStackTrace();
-		// For any error, deallocate all VMs
-		request.mapAndReduceVmProvisionList = new ArrayList<VmInstance>();
-		request.schedulingPlan = new HashMap<Integer, Integer>();
-		return false;
-	    }
+	/*
+	 * Allocate all reduce tasks
+	 */
+	private void ReduceTasksAlloc(Request request, List<VmInstance> VPList) {
+		for (int i = 0; i < request.job.reduceTasks.size(); i++) {
+			// Scheduling (Provisioning already done in MapTasksAlloc)
+			VmInstance vm = VPList.get(i);
+			ReduceTask reduceTask = request.job.reduceTasks.get(i);
+			request.schedulingPlan.put(reduceTask.getCloudletId(), vm.getId());
+		}
 	}
-	return true;
-    }
-
-    /*
-     * Allocate all reduce tasks
-     */
-    private void ReduceTasksAlloc(Request request, List<VmInstance> VPList)
-    {
-	for (int i = 0; i < request.job.reduceTasks.size(); i++)
-	{
-	    // Scheduling (Provisioning already done in MapTasksAlloc)
-	    VmInstance vm = VPList.get(i);
-	    ReduceTask reduceTask = request.job.reduceTasks.get(i);
-	    request.schedulingPlan.put(reduceTask.getCloudletId(), vm.getId());
-	}
-    }
 }

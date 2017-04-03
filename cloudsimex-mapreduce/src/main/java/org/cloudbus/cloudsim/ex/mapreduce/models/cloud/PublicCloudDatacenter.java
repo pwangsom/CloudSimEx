@@ -4,8 +4,9 @@ import java.util.List;
 
 public class PublicCloudDatacenter extends CloudDatacenter {
 
-    public PublicCloudDatacenter(String name, List<VmType> vmtypes) throws Exception {
-	super(name, 200, 32768, 100, 99999, vmtypes);
-    }
+	public PublicCloudDatacenter(String name, List<VmType> vmtypes) throws Exception {
+		//super(name, 200, 32768, 100, 99999, vmtypes);
+		super(name, 4, 4096, 10, 100000000, vmtypes);
+	}
 
 }

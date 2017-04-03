@@ -1,0 +1,30 @@
+!!org.cloudbus.cloudsim.ex.mapreduce.models.cloud.Cloud
+
+publicCloudDatacenters:
+ - [
+    # Public Cloud info: [name, [vmTypes]]
+    aws-us-east-1,
+      [ 
+        # VM Type info (You have multiples): [name, cost per hour, transferring.cost, mips, cores, ram, boot_time]
+        !!org.cloudbus.cloudsim.ex.mapreduce.models.cloud.VmType 
+        [large-aws-us-east-1, 0.00, 0.000, 1000.0, 4, 1024, 0],
+      ]
+   ]
+
+privateCloudDatacenters:
+
+dataSources:
+   # Data Sources info (You have multiples): [name, cost]
+ - [gbr-sensors, 0.000]
+ - [EEE-sensors, 0.000]
+ - [S3-sensors, 0.000]
+
+
+throughputs_vm_vm:
+# Throughputs info between VM Types (You have multiples): [source, destination, throughput]
+
+throughputs_ds_vm:
+# Throughputs info between a VM Type and a Data Source (You have multiples): [source, destination, throughput]
+- [gbr-sensors, large-aws-us-east-1, 100.0]
+- [EEE-sensors, large-aws-us-east-1, 100.0]
+- [S3-sensors, large-aws-us-east-1, 100.0]

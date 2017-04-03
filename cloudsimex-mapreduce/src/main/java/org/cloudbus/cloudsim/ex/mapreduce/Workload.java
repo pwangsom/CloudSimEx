@@ -13,7 +13,8 @@ import org.cloudbus.cloudsim.ex.mapreduce.policy.Policy.CloudDeploymentModel;
 public class Workload
 {
     String policy;
-    CloudDeploymentModel cloudDeploymentModel = CloudDeploymentModel.Hybrid;
+    // CloudDeploymentModel cloudDeploymentModel = CloudDeploymentModel.Hybrid;
+    CloudDeploymentModel cloudDeploymentModel = CloudDeploymentModel.Public;
     Map<UserClass, Double> userClassAllowedPercentage = new HashMap<UserClass, Double>();
     Requests requests;
 

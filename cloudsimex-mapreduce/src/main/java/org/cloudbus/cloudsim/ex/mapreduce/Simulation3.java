@@ -27,7 +27,7 @@ import org.cloudbus.cloudsim.ex.util.CustomLog;
  * comments on how to add new properties to the experiment.
  * 
  */
-public class Simulation2 {
+public class Simulation3 {
 
 	// From Cloud.yaml
 	private static Cloud cloud;
